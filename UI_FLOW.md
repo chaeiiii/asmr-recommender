@@ -8,7 +8,7 @@ Get first-time users to a useful recommendation quickly, then make repeat visits
 /                       landing/session bootstrap
 /test                   sound-first test
 /onboarding/voice       Talking / No Talking / Both
-/onboarding/language    conditional language
+/onboarding/languages    conditional language
 /onboarding/extra-preferences  checkbox completion
 /my-taste?first=1       first result
 /home                   For You

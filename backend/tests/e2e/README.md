@@ -6,7 +6,7 @@ existing `TEST_DATABASE_URL` PostgreSQL migration/savepoint fixtures. Every test
 gets a synthetic catalog and isolated database state. Sample intervals belong
 only to these fixtures; no CSV or YouTube API key is required.
 
-Setup (from `backend`): `pip install -e ".[dev,e2e]"`, then
+Setup (from `backend`): `pip install -e ".[dev]"`, then
 `python -m playwright install chromium`. Install frontend dependencies with
 `npm ci` in `frontend`. Set `TEST_DATABASE_URL` to a disposable PostgreSQL database.
 The existing database fixture skips when that variable is absent. The E2E
@@ -32,6 +32,5 @@ resume, first My Taste, and Home. Retention covers feedback evidence, item-only
 Skip, persisted saving/removal, Search without learning, and Discover attribution
 versus Home, Search, and Saved likes.
 
-Existing spec mismatch: UI_FLOW.md spells the language route
-`/onboarding/language`; both the existing frontend and backend use
-`/onboarding/languages`. Tests follow the implemented route without renaming it.
+Route consistency: UI_FLOW.md, frontend, and backend use
+`/onboarding/languages`.
