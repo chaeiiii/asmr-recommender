@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import SessionGate from "../components/SessionGate";
 
 export const metadata: Metadata = {
   title: "ASMR Recommender",
-  description: "ASMR Recommender development bootstrap",
+  description: "Find ASMR based on what you enjoy listening to.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-slate-50 text-slate-900">{children}</body>
+      <body><SessionGate>{children}</SessionGate></body>
     </html>
   );
 }
