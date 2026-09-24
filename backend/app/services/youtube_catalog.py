@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
-from sqlalchemy import literal_column
+from sqlalchemy import literal_column, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,13 @@ from app.models import Video
 from app.services.youtube_client import VideoMetadata, YouTubeClient, YouTubeError
 
 logger = logging.getLogger(__name__)
+
+
+def active_catalog_query():
+    """Shared eligibility predicate for active catalog consumers."""
+    return select(Video).where(
+        Video.availability_status == "active", Video.embeddable.is_(True)
+    )
 
 # Discovery terms only: these do not assign any taxonomy labels.
 SEED_QUERIES = (
