@@ -13,22 +13,36 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.models import Video
-from app.services.youtube_client import YouTubeClient, YouTubeError, VideoMetadata
+from app.services.youtube_client import VideoMetadata, YouTubeClient, YouTubeError
 
 logger = logging.getLogger(__name__)
 
 # Discovery terms only: these do not assign any taxonomy labels.
 SEED_QUERIES = (
-    "ASMR tapping", "ASMR scratching", "ASMR brushing", "ASMR crinkling",
-    "ASMR rubbing", "ASMR water sounds", "ASMR mouth sounds", "ASMR chewing",
-    "ASMR typing", "ASMR cutting", "ASMR page turning", "ASMR blowing",
-    "ASMR whisper", "ASMR soft spoken", "ASMR no talking",
-    "ASMR hand movements", "ASMR light triggers", "ASMR personal attention",
-    "ASMR roleplay", "ASMR 한국어 소리", "ASMR English", "ASMR 日本語 音",
+    "ASMR tapping",
+    "ASMR scratching",
+    "ASMR brushing",
+    "ASMR crinkling",
+    "ASMR rubbing",
+    "ASMR water sounds",
+    "ASMR mouth sounds",
+    "ASMR chewing",
+    "ASMR typing",
+    "ASMR cutting",
+    "ASMR page turning",
+    "ASMR blowing",
+    "ASMR whisper",
+    "ASMR soft spoken",
+    "ASMR no talking",
+    "ASMR hand movements",
+    "ASMR light triggers",
+    "ASMR personal attention",
+    "ASMR roleplay",
+    "ASMR 한국어 소리",
+    "ASMR English",
+    "ASMR 日本語 音",
 )
-_DURATION = re.compile(
-    r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?"
-)
+_DURATION = re.compile(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?")
 
 
 @dataclass
@@ -68,7 +82,9 @@ def normalized_language(value: str | None) -> str | None:
     return None if primary in {"und", "zxx", "mul"} else primary
 
 
-def video_row(video: VideoMetadata, synced_at: datetime) -> tuple[dict | None, str | None]:
+def video_row(
+    video: VideoMetadata, synced_at: datetime
+) -> tuple[dict | None, str | None]:
     snippet = video.snippet
     if video.status.privacy_status != "public":
         return None, "not_public"
@@ -94,10 +110,12 @@ def video_row(video: VideoMetadata, synced_at: datetime) -> tuple[dict | None, s
     if not re.search(r"(?<![a-z])asmr(?![a-z])", evidence):
         return None, "no_asmr_evidence"
     thumbnail = next(
-        (snippet.thumbnails[key].url for key in
-         ("maxres", "standard", "high", "medium", "default")
-         if key in snippet.thumbnails
-         and snippet.thumbnails[key].url.startswith("https://")),
+        (
+            snippet.thumbnails[key].url
+            for key in ("maxres", "standard", "high", "medium", "default")
+            if key in snippet.thumbnails
+            and snippet.thumbnails[key].url.startswith("https://")
+        ),
         None,
     )
     return {
@@ -125,8 +143,9 @@ def upsert_videos(session: Session, rows: list[dict]) -> tuple[int, int]:
     statement = insert(Video).values(rows)
     statement = statement.on_conflict_do_update(
         index_elements=[Video.youtube_video_id],
-        set_={key: statement.excluded[key] for key in rows[0]
-              if key != "youtube_video_id"},
+        set_={
+            key: statement.excluded[key] for key in rows[0] if key != "youtube_video_id"
+        },
     ).returning(literal_column("xmax = 0").label("inserted"))
     outcomes = list(session.execute(statement).scalars())
     inserted = sum(bool(value) for value in outcomes)
@@ -170,7 +189,9 @@ def collect_catalog(
                     rows = []
                     result.unavailable += len(batch.missing_ids)
                     result.rejected += len(batch.missing_ids)
-                    result.rejection_reasons["not_retrievable"] += len(batch.missing_ids)
+                    result.rejection_reasons["not_retrievable"] += len(
+                        batch.missing_ids
+                    )
                     for video in batch.videos:
                         row, reason = video_row(video, datetime.now(timezone.utc))
                         if row is None:
@@ -193,8 +214,9 @@ def collect_catalog(
     except YouTubeError as exc:
         result.stopped = True
         result.failures[exc.reason] += 1
-        logger.warning("youtube_catalog stopped reason=%s status=%s",
-                       exc.reason, exc.status_code)
+        logger.warning(
+            "youtube_catalog stopped reason=%s status=%s", exc.reason, exc.status_code
+        )
     finally:
         logger.info("youtube_catalog result=%s", asdict(result))
     return result

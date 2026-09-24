@@ -12,7 +12,9 @@ from app.services.youtube_client import YouTubeClient, YouTubeConfig
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Collect YouTube catalog metadata")
-    parser.add_argument("--query", action="append", help="Repeat to override seed queries")
+    parser.add_argument(
+        "--query", action="append", help="Repeat to override seed queries"
+    )
     parser.add_argument("--pages-per-query", type=int, default=1)
     args = parser.parse_args()
     if args.pages_per_query < 1:
@@ -23,7 +25,9 @@ def main() -> int:
     with YouTubeClient(YouTubeConfig.from_env()) as client:
         with Session(get_engine()) as session:
             result = collect_catalog(
-                client, session, args.query or SEED_QUERIES,
+                client,
+                session,
+                args.query or SEED_QUERIES,
                 pages_per_query=args.pages_per_query,
             )
     return 1 if result.stopped else 0
