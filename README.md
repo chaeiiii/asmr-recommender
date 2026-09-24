@@ -1,7 +1,7 @@
 # ASMR Recommender
 
 Next.js, TypeScript, and Tailwind frontend with a FastAPI backend.
-Includes the PostgreSQL schema and migrations; product flows are not implemented yet.
+Includes PostgreSQL schema/migrations, taxonomy seed, and anonymous session resume API.
 
 ## Requirements
 
@@ -25,6 +25,28 @@ Copy-Item .env.example .env
 API health: http://localhost:8000/health returns `{"status":"ok"}`.
 Interactive API docs: http://localhost:8000/docs.
 `CORS_ORIGINS` is a comma-separated list of allowed frontend origins.
+
+### Anonymous session
+
+Generate a secret with `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+and set `SESSION_SECRET` in `backend/.env`. Keep it private and stable across restarts
+and backend workers; changing it invalidates existing session cookies. Session requests
+fail configuration validation if the secret is shorter than 32 bytes.
+`SESSION_COOKIE_SECURE` defaults to `true`; the example sets it to `false` for local
+HTTP development. Use `true` with HTTPS in production.
+
+`POST /api/v1/session` creates or resumes an anonymous user using a signed, HttpOnly,
+SameSite=Lax cookie with a rolling one-year lifetime. Invalid or deleted-user cookies
+start a fresh profile. Identity is accepted only from the signed cookie, never a
+request user ID. Browser requests must use `credentials: "include"`; configure the
+frontend's exact origin in `CORS_ORIGINS` and deploy frontend/API on the same site.
+
+The response contains `initial_test_completed`, `onboarding_completed`, and
+`next_route`: `/test`, `/onboarding/voice`, `/onboarding/languages`, or
+`/onboarding/extra-preferences` for the first incomplete step. No Talking bypasses
+language; specific saved languages or No preference complete the language step.
+Completed returning users always receive `/home`. Step submission endpoints and the
+first-completion My Taste redirect belong to later tasks.
 
 ## Database
 
@@ -62,6 +84,28 @@ tasks. Foreign keys preserve history with PostgreSQL's default NO ACTION behavio
 Required foreign keys and boolean flags are non-null; unspecified timestamps must
 be supplied by callers. Only `videos.created_at` has a database `now()` default.
 
+## Taxonomy seed
+
+After applying migrations, run from `backend/`:
+
+```powershell
+.\.venv\Scripts\python -m app.seed_taxonomy
+```
+
+This loads `DATABASE_URL` using the same configuration as Alembic and inserts the
+27 canonical v2.0 keys: 10 Sound, 3 Voice, 4 Visual, 4 Format, 3 Speed, and 3 Intensity.
+All 10 Sound keys are core; all new rows are active. Sound descriptions use the
+spec's examples; other descriptions remain null. Speed/Intensity display names
+use title-cased keys because the spec does not provide separate display labels.
+Languages, onboarding voice modes, aliases, and future subtypes are not seeded.
+
+The command is transactional and safe to repeat. It inserts missing keys without
+replacing IDs, existing display text/descriptions, or active flags, and leaves other
+rows untouched. A conflicting family or core flag fails with a nonzero exit code
+and rolls back new rows; semantic changes require an explicit version/migration plan.
+It reports the number inserted (27 on an empty table, 0 on a repeat run).
+There is no schema change or automatic seed at application startup.
+
 ## Frontend
 
 ```powershell
@@ -87,8 +131,9 @@ From `backend/`:
 ```
 
 Set `TEST_DATABASE_URL` in `backend/.env` to your `asmr_test` database to enable
-PostgreSQL migration tests. They use a unique schema in a rolled-back transaction,
-cover upgrade/downgrade/re-upgrade and constraints, and never modify `public`.
+PostgreSQL migration and seed tests. They use a unique schema in a rolled-back
+transaction, cover migrations, constraints, seed idempotency and conflicts, and
+never modify `public`.
 Without this variable, PostgreSQL tests are explicitly skipped; offline migration
 and health tests still run. Tests do not call YouTube.
 

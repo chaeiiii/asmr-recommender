@@ -1,9 +1,11 @@
-"""Minimal API bootstrap; persistence and product routes come in later tasks."""
+"""API entry point."""
 
 import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.sessions import router as session_router
 
 app = FastAPI(title="ASMR Recommender API")
 app.add_middleware(
@@ -13,9 +15,11 @@ app.add_middleware(
         for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
         if origin.strip()
     ],
-    allow_methods=["GET"],
-    allow_headers=[],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
+app.include_router(session_router, prefix="/api/v1")
 
 
 @app.get("/health")

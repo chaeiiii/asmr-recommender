@@ -1,59 +1,19 @@
 """Real PostgreSQL validation, isolated in a unique schema (never public)."""
 
-import os
 from datetime import datetime, timezone
 from decimal import Decimal
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
 from alembic import command
 from alembic.autogenerate import compare_metadata
-from alembic.config import Config
 from alembic.migration import MigrationContext
-from dotenv import load_dotenv
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models as m
 from app.database import Base
-
-
-@pytest.fixture(scope="module")
-def migrated():
-    backend = Path(__file__).resolve().parents[1]
-    load_dotenv(backend / ".env")
-    url = os.getenv("TEST_DATABASE_URL")
-    if not url:
-        pytest.skip("Set TEST_DATABASE_URL to run real PostgreSQL migration tests")
-    parsed = sa.engine.make_url(url)
-    if parsed.drivername not in {"postgresql", "postgresql+psycopg"}:
-        pytest.fail("TEST_DATABASE_URL must point to PostgreSQL")
-    engine = sa.create_engine(parsed.set(drivername="postgresql+psycopg"))
-    schema = "task02_test_" + uuid4().hex
-    with engine.connect() as connection:
-        transaction = connection.begin()
-        try:
-            connection.execute(sa.schema.CreateSchema(schema))
-            connection.execute(sa.text(f'SET LOCAL search_path TO "{schema}"'))
-            engine.dialect.default_schema_name = schema
-            config = Config(str(backend / "alembic.ini"))
-            config.attributes["connection"] = connection
-            command.upgrade(config, "head")
-            yield connection, config
-        finally:
-            # PostgreSQL transactional DDL removes only this test's schema and data.
-            transaction.rollback()
-    engine.dispose()
-
-
-@pytest.fixture
-def db(migrated):
-    connection, _ = migrated
-    with connection.begin_nested() as transaction:
-        yield connection
-        transaction.rollback()
 
 
 @pytest.fixture
