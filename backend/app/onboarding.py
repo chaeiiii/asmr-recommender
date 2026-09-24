@@ -52,9 +52,13 @@ def require_test(user):
 
 
 def language_rows(user, db):
-    return list(db.scalars(select(UserLanguagePreference).where(
-        UserLanguagePreference.user_id == user.id,
-    )))
+    return list(
+        db.scalars(
+            select(UserLanguagePreference).where(
+                UserLanguagePreference.user_id == user.id,
+            )
+        )
+    )
 
 
 def language_payload(user, db):
@@ -83,7 +87,8 @@ def set_voice(body: VoiceBody, user: Identity, db: Database) -> dict:
         user.language_no_preference = False
     db.commit()
     return {
-        "next_route": EXTRA_ROUTE if body.voice_mode == "no_talking"
+        "next_route": EXTRA_ROUTE
+        if body.voice_mode == "no_talking"
         else "/onboarding/languages",
     }
 
@@ -124,17 +129,29 @@ def set_languages(body: LanguagesBody, user: Identity, db: Database) -> dict:
 
 
 def eligible_options(user, db):
-    presented = select(TriggerSample.primary_trigger_id).join(
-        InitialTestAssignment,
-        InitialTestAssignment.sample_id == TriggerSample.id,
-    ).where(InitialTestAssignment.user_id == user.id)
-    return list(db.scalars(select(Trigger).where(
-        Trigger.active.is_(True),
-        (
-            (Trigger.family == "sound") & Trigger.is_core.is_(True)
-            & Trigger.id.not_in(presented)
-        ) | Trigger.family.in_(("visual", "format")),
-    ).order_by(Trigger.family, Trigger.key)))
+    presented = (
+        select(TriggerSample.primary_trigger_id)
+        .join(
+            InitialTestAssignment,
+            InitialTestAssignment.sample_id == TriggerSample.id,
+        )
+        .where(InitialTestAssignment.user_id == user.id)
+    )
+    return list(
+        db.scalars(
+            select(Trigger)
+            .where(
+                Trigger.active.is_(True),
+                (
+                    (Trigger.family == "sound")
+                    & Trigger.is_core.is_(True)
+                    & Trigger.id.not_in(presented)
+                )
+                | Trigger.family.in_(("visual", "format")),
+            )
+            .order_by(Trigger.family, Trigger.key)
+        )
+    )
 
 
 def require_extra(user, db):
@@ -164,11 +181,15 @@ def get_extra(user: Identity, db: Database) -> dict:
 def set_extra(body: ExtraBody, user: Identity, db: Database) -> dict:
     require_extra(user, db)
     selected = set(body.liked_features)
-    events = list(db.scalars(select(PreferenceEvent).where(
-        PreferenceEvent.user_id == user.id,
-        PreferenceEvent.source == "self_report",
-        PreferenceEvent.reference_type == "onboarding_extra",
-    )))
+    events = list(
+        db.scalars(
+            select(PreferenceEvent).where(
+                PreferenceEvent.user_id == user.id,
+                PreferenceEvent.source == "self_report",
+                PreferenceEvent.reference_type == "onboarding_extra",
+            )
+        )
+    )
     recorded = {db.get(Trigger, event.trigger_id).key for event in events}
     # The completion flag also makes an empty Skip safely replayable. Changes
     # after completion must not reinterpret later, stronger profile evidence.
@@ -183,15 +204,23 @@ def set_extra(body: ExtraBody, user: Identity, db: Database) -> dict:
     now = datetime.now(timezone.utc)
     for key in sorted(selected - recorded):
         trigger = eligible[key]
-        db.add(PreferenceEvent(
-            user_id=user.id, trigger_id=trigger.id, source="self_report",
-            observation=Decimal("0.35"), reference_type="onboarding_extra",
-            reference_id=key, created_at=now,
-        ))
+        db.add(
+            PreferenceEvent(
+                user_id=user.id,
+                trigger_id=trigger.id,
+                source="self_report",
+                observation=Decimal("0.35"),
+                reference_type="onboarding_extra",
+                reference_id=key,
+                created_at=now,
+            )
+        )
         preference = db.get(UserPreference, (user.id, trigger.id))
         if preference is None:
             preference = UserPreference(
-                user_id=user.id, trigger_id=trigger.id, evidence_count=0,
+                user_id=user.id,
+                trigger_id=trigger.id,
+                evidence_count=0,
             )
             db.add(preference)
         if preference.evidence_count == 0:
@@ -218,13 +247,20 @@ def display_state(score: Decimal, evidence_count: int) -> str:
 
 @router.get("/me/preferences")
 def get_preferences(user: Identity, db: Database) -> dict:
-    preferences = {row.trigger_id: row for row in db.scalars(
-        select(UserPreference).where(UserPreference.user_id == user.id)
-    )}
+    preferences = {
+        row.trigger_id: row
+        for row in db.scalars(
+            select(UserPreference).where(UserPreference.user_id == user.id)
+        )
+    }
     items = {}
-    for trigger in db.scalars(select(Trigger).where(
-        Trigger.active.is_(True),
-    ).order_by(Trigger.family, Trigger.key)):
+    for trigger in db.scalars(
+        select(Trigger)
+        .where(
+            Trigger.active.is_(True),
+        )
+        .order_by(Trigger.family, Trigger.key)
+    ):
         preference = preferences.get(trigger.id)
         count = preference.evidence_count if preference else 0
         score = preference.score if preference and count else Decimal(0)
@@ -236,12 +272,18 @@ def get_preferences(user: Identity, db: Database) -> dict:
         }
     recent = []
     seen = set()
-    for event in db.scalars(select(PreferenceEvent).where(
-        PreferenceEvent.user_id == user.id,
-        PreferenceEvent.source == "discover_like",
-    ).order_by(PreferenceEvent.created_at.desc(), PreferenceEvent.id.desc())):
+    for event in db.scalars(
+        select(PreferenceEvent)
+        .where(
+            PreferenceEvent.user_id == user.id,
+            PreferenceEvent.source == "discover_like",
+        )
+        .order_by(PreferenceEvent.created_at.desc(), PreferenceEvent.id.desc())
+    ):
         if event.trigger_id in items and event.trigger_id not in seen:
-            recent.append({**items[event.trigger_id], "discovered_at": event.created_at})
+            recent.append(
+                {**items[event.trigger_id], "discovered_at": event.created_at}
+            )
             seen.add(event.trigger_id)
             if len(recent) == 10:
                 break
