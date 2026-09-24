@@ -103,7 +103,7 @@ export default function Page() {
 }} />}
       {saved.failed && <div className="error"><p>Saved status could not be loaded.</p><button onClick={saved.retry}>Retry saved status</button></div>}
       {!loading && !failed && !items.length && <p>No videos to show. Try fewer filters or Clear All.</p>}
-      {items.map(video => <VideoCard key={video.video_id} video={video} initialSaved={!!saved.data?.items.some(item => item.video_id === video.video_id)} onDismiss={id => setHidden(current => [...current, id])} />)}
+      {items.map(video => <VideoCard key={video.video_id} video={video} surface="search" initialSaved={!!saved.data?.items.some(item => item.video_id === video.video_id)} onDismiss={id => setHidden(current => [...current, id])} />)}
       {results?.next_page != null && <button disabled={loading || failed} onClick={() => {
   setLoading(true);
   setFailed(false);

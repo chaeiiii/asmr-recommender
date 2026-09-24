@@ -41,6 +41,7 @@ IMPRESSION_WINDOW = timedelta(hours=1)
 class InteractionBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["play", "like", "dislike", "skip"]
+    surface: Literal["home", "discover", "search", "favorites"] | None = None
     watch_duration_sec: int | None = Field(default=None, ge=0, strict=True)
 
 
@@ -285,7 +286,11 @@ def interact(
         previous is None or previous.type != body.type
     ):
         observation = Decimal(1 if body.type == "like" else -1)
-        source = f"video_{body.type}"
+        source = (
+            "discover_like"
+            if body.surface == "discover" and body.type == "like"
+            else f"video_{body.type}"
+        )
         for tag, trigger in usable_features(db, video_id):
             if tag.confidence < Decimal("0.60"):
                 continue

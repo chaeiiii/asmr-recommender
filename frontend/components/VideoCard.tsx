@@ -11,8 +11,9 @@ function duration(seconds: number | null) {
   const minutes = Math.floor(seconds % 3600 / 60);
   return `${hours ? `${hours}:` : ""}${hours ? String(minutes).padStart(2, "0") : minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
-export default function VideoCard({ video, initialSaved = false, exploration, onSavedChange, onDismiss }: {
+export default function VideoCard({ video, initialSaved = false, exploration, surface, onSavedChange, onDismiss }: {
   video: Video; initialSaved?: boolean; exploration?: string;
+  surface?: "home" | "discover" | "search" | "favorites";
   onSavedChange?: (id: number, saved: boolean) => void; onDismiss: (id: number) => void;
 }) {
   const [savedOverride, setSaved] = useState<boolean>();
@@ -32,7 +33,7 @@ export default function VideoCard({ video, initialSaved = false, exploration, on
         setSaved(result.saved); onSavedChange?.(video.video_id, result.saved);
         setMessage(result.saved ? "Saved." : "Removed from Saved.");
       } else {
-        await api(`/videos/${video.video_id}/interactions`, { type: action });
+        await api(`/videos/${video.video_id}/interactions`, { type: action, surface });
         if (action === "play") setPlaying(true);
         if (action === "like" || action === "dislike") { setSentiment(action); setMessage(action === "like" ? "Liked. Your taste has been updated." : "Disliked. Your taste has been updated."); }
         if (action === "skip") onDismiss(video.video_id);

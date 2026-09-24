@@ -280,3 +280,35 @@ def test_skip_and_play_leave_features_untouched_and_identity_is_cookie_only(home
     )
     assert db.get(UserPreference, (user.id, trigger.id)) is None
     assert db.scalar(select(PreferenceEvent)).user_id != user.id
+
+
+@pytest.mark.parametrize("surface", [None, "home", "discover", "search", "favorites"])
+def test_discover_like_attribution_keeps_scoring_and_retry_rules(home_api, surface):
+    client, db, user, trigger = home_api
+    video = add_video(db, trigger, 1)
+    payload = {} if surface is None else {"surface": surface}
+    assert react(client, video, "like", **payload).status_code == 200
+    expected = "discover_like" if surface == "discover" else "video_like"
+    event = db.scalar(select(PreferenceEvent))
+    assert event.source == expected
+    assert event.observation == 1
+    preference = db.get(UserPreference, (user.id, trigger.id))
+    assert preference.score == Decimal("0.2000")
+    assert preference.evidence_count == 1
+    assert preference.last_evidence_source == expected
+    recent = client.get(f"{ROOT}/me/preferences").json()["recent_discoveries"]
+    assert [item["key"] for item in recent] == (
+        [trigger.key] if surface == "discover" else []
+    )
+    # Retrying on another surface must not add/relabel existing evidence.
+    for retry_surface in ("discover", "home", "search", "favorites"):
+        assert react(client, video, "like", surface=retry_surface).status_code == 200
+    assert db.scalar(select(func.count()).select_from(PreferenceEvent)) == 1
+    db.refresh(event)
+    assert event.source == expected
+    assert react(client, video, "dislike", surface="discover").status_code == 200
+    db.refresh(preference)
+    assert preference.score == Decimal("-0.0400")
+    assert preference.evidence_count == 2
+    assert preference.last_evidence_source == "video_dislike"
+    assert react(client, video, "like", surface="unknown").status_code == 422
