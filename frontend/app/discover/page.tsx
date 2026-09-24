@@ -1,1 +1,2 @@
-export default function Page() { return <main className="page"><h1>Discover</h1><p>A place to explore more ASMR. Coming soon.</p></main>; }
+import VideoFeed from "../../components/VideoFeed";
+export default function Page() { return <VideoFeed kind="discover" />; }

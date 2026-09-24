@@ -36,4 +36,24 @@ summary { cursor: pointer; padding: 14px 0; min-height: 48px; }
 .bottom-nav a { min-height: 48px; display: flex; align-items: center; justify-content: center; font-size: .8rem; text-decoration: none; border-radius: 8px; text-align: center; }
 .bottom-nav a[aria-current="page"] { background: #e3eee6; font-weight: 700; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.panel, .video-card { background: white; border: 1px solid #cbd8d0; border-radius: 18px; padding: 20px; margin-top: 24px; overflow-wrap: anywhere; }
+.video-card h2, .panel h2 { margin: 0 0 12px; }
+.thumbnail { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; margin-bottom: 20px; }
+.placeholder { display: grid; place-items: center; background: #e9f0eb; }
+.video-meta { font-size: .9rem; color: #46665c; }
+.video-meta:empty { display: none; }
+.chips { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chips li, .state-label { background: #e9f0eb; border-radius: 10px; padding: 7px 10px; font-size: .85rem; }
+.card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.card-actions button { flex: 1 1 auto; }
+button[aria-pressed="true"] { background: #e3eee6; border-color: #285e4c; }
+.link-button { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px; border: 1px solid #a8bab1; border-radius: 12px; text-align: center; text-decoration: none; }
+.text-link { display: inline-block; padding: 12px 0; text-underline-offset: 4px; }
+.taste-list { list-style: none; padding: 0; }
+.taste-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid #e9f0eb; }
+.field { display: grid; gap: 8px; margin-top: 16px; }
+.field input { width: 100%; min-width: 0; height: 48px; border: 1px solid #a8bab1; border-radius: 10px; background: white; padding: 10px; font: inherit; }
+.duration-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.active-filters li { padding: 0; background: transparent; }
+.filter-sheet { margin-top: 16px; }
 @media (min-width: 640px) { .page { padding-top: 64px; } .bottom-nav { padding-left: max(12px, calc((100vw - 680px) / 2)); padding-right: max(12px, calc((100vw - 680px) / 2)); } }

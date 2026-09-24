@@ -12,7 +12,6 @@ export default function SessionGate({ children }: { children: React.ReactNode })
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
-    setError(false);
     resumeSession().then(session => {
       if (!active) return;
       const onboarding = path === "/test" || path.startsWith("/onboarding/");
@@ -22,7 +21,18 @@ export default function SessionGate({ children }: { children: React.ReactNode })
     }).catch(() => { if (active) setError(true); });
     return () => { active = false; };
   }, [path, router, attempt]);
-  if (error) return <main className="page"><ErrorState retry={() => setAttempt(value => value + 1)} /></main>;
+  if (error) {
+  return (
+    <main className="page">
+      <ErrorState
+        retry={() => {
+          setError(false);
+          setAttempt(value => value + 1);
+        }}
+      />
+    </main>
+  );
+}
   if (checked?.path !== path) return <main className="page"><h1>Find my ASMR taste</h1><p>Personalized ASMR, based on what you enjoy listening to.</p><LoadingState /></main>;
   return <>{children}{checked.session.onboarding_completed && <BottomNav />}</>;
 }

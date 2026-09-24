@@ -1,18 +1,68 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import { api } from "../lib/api";
+
 export function useStep<T>(path: string) {
   const [data, setData] = useState<T>();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
   const [failed, setFailed] = useState(false);
   const lock = useRef(false);
   const last = useRef<() => Promise<void>>(async () => {});
+
   const run = useCallback(async (action: () => Promise<void>) => {
     if (lock.current) return;
-    lock.current = true; last.current = action; setBusy(true); setFailed(false);
-    try { await action(); } catch { setFailed(true); }
-    finally { lock.current = false; setBusy(false); }
+
+    lock.current = true;
+    last.current = action;
+    setBusy(true);
+    setFailed(false);
+
+    try {
+      await action();
+    } catch {
+      setFailed(true);
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
   }, []);
-  useEffect(() => { void run(async () => setData(await api<T>(path))); }, [path, run]);
-  return { data, setData, busy, failed, run, retry: () => { void run(last.current); } };
+
+  useEffect(() => {
+    let active = true;
+
+    api<T>(path)
+      .then(value => {
+        if (!active) return;
+        setData(value);
+        setFailed(false);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      })
+      .finally(() => {
+        if (active) setBusy(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [path]);
+
+  return {
+    data,
+    setData,
+    busy,
+    failed,
+    run,
+    retry: () => {
+      void run(last.current);
+    },
+  };
 }
