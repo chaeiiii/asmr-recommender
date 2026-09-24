@@ -5,6 +5,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.onboarding import router as onboarding_router
 from app.sessions import router as session_router
 from app.sound_test import router as sound_test_router
 
@@ -22,6 +23,7 @@ app.add_middleware(
 )
 app.include_router(session_router, prefix="/api/v1")
 app.include_router(sound_test_router, prefix="/api/v1")
+app.include_router(onboarding_router, prefix="/api/v1")
 
 
 @app.get("/health")
