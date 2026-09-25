@@ -142,12 +142,14 @@ def eligible_options(user, db):
             select(Trigger)
             .where(
                 Trigger.active.is_(True),
+                Trigger.key != "single_trigger",
                 (
                     (Trigger.family == "sound")
                     & Trigger.is_core.is_(True)
                     & Trigger.id.not_in(presented)
                 )
-                | Trigger.family.in_(("visual", "format")),
+                | Trigger.family.in_(("visual", "format"))
+                | ((Trigger.family == "intensity") & (Trigger.key == "aggressive")),
             )
             .order_by(Trigger.family, Trigger.key)
         )
@@ -171,7 +173,7 @@ def feature_identity(trigger):
 @router.get("/onboarding/extra-preferences")
 def get_extra(user: Identity, db: Database) -> dict:
     require_extra(user, db)
-    groups = {family: [] for family in ("sound", "visual", "format")}
+    groups = {family: [] for family in ("sound", "visual", "format", "intensity")}
     for trigger in eligible_options(user, db):
         groups[trigger.family].append(feature_identity(trigger))
     return {"groups": groups}

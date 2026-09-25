@@ -37,6 +37,10 @@ def onboarding_api(db, monkeypatch):
             ("inactive", "visual", False, False),
             ("hand_movements", "visual", False, True),
             ("roleplay", "format", False, True),
+            ("single_trigger", "format", False, True),
+            ("aggressive", "intensity", False, True),
+            ("gentle", "intensity", False, True),
+            ("normal_intensity", "intensity", False, True),
             ("whisper", "voice", False, True),
         ):
             session.add(
@@ -179,13 +183,17 @@ def test_extra_eligibility_and_atomic_validation(onboarding_api, phase):
         "sound": ["paper_crinkling"],
         "visual": ["hand_movements"],
         "format": ["roleplay"],
+        "intensity": ["aggressive"],
     }
     assert all(
         set(item) == {"key", "display_name", "family"}
         for items in groups.values()
         for item in items
     )
-    for key in ("tapping", "non_core", "inactive", "whisper", "missing"):
+    for key in (
+        "tapping", "non_core", "inactive", "whisper", "missing",
+        "single_trigger", "gentle", "normal_intensity",
+    ):
         assert (
             client.post(
                 f"{ROOT}/extra-preferences",
@@ -199,7 +207,9 @@ def test_extra_eligibility_and_atomic_validation(onboarding_api, phase):
     assert not db.get(User, user_id).onboarding_completed
 
 
-@pytest.mark.parametrize("selected", [[], ["paper_crinkling", "roleplay", "roleplay"]])
+@pytest.mark.parametrize(
+    "selected", [[], ["paper_crinkling", "roleplay", "roleplay"], ["aggressive"]]
+)
 def test_extra_completes_and_retries_do_not_count_twice(onboarding_api, selected):
     client, db, user_id = onboarding_api
     client.post(f"{ROOT}/voice", json={"voice_mode": "no_talking"})

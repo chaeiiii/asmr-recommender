@@ -84,41 +84,64 @@ def sentiment(flow, key, action):
 def test_fresh_session_to_first_taste_and_home(
     flow, extended, voice, language, extras,
 ):
+    voice_labels = {
+        "Talking": "Talking · 말소리 있음",
+        "No Talking": "No Talking · 말소리 없음", "Both": "Both · 둘 다",
+    }
+    language_labels = {
+        "English": "English · 영어", "No preference": "No preference · 상관없음",
+    }
+    answer_labels = {
+        "Like": "좋아요", "Neutral": "보통", "Dislike": "싫어요", "Skip": "건너뛰기",
+    }
+    feature_labels = {
+        "tapping": "Tapping · 태핑", "scratching": "Scratching · 스크래칭",
+        "mic_brushing": "Mic Brushing · 마이크 브러싱",
+        "ear_cleaning": "Ear Cleaning · 귀 청소",
+        "mouth_sounds": "Mouth Sounds · 입소리",
+        "water_liquid": "Water / Liquid · 물 / 액체 소리",
+        "paper_crinkling": "Paper / Crinkling · 종이 / 바스락 소리",
+        "typing_writing": "Typing / Writing · 타이핑 / 필기",
+        "fabric_soft_object": "Fabric / Soft Object · 천 / 부드러운 물체 소리",
+        "eating_chewing": "Eating / Chewing · 먹는 소리 / 씹는 소리",
+    }
     page = flow.page
     assert flow.context.cookies() == []
     assert flow.db.scalar(select(User)) is None
     page.goto(flow.origin)
     at(flow, "/test")
-    expect(page.get_by_title("Sound sample 1")).to_be_visible()
+    expect(page.get_by_title("소리 샘플 1")).to_be_visible()
     cookie = next(c for c in flow.context.cookies() if c["name"] == COOKIE_NAME)
     assert cookie["httpOnly"] and cookie["sameSite"] == "Lax"
     answers = ["Like", "Neutral", "Dislike", "Skip", "Like", "Neutral"]
     for index, answer in enumerate(answers, start=1):
-        expect(page.get_by_title(f"Sound sample {index}")).to_be_visible()
-        button(page, answer).click()
-        expect(button(page, "Next")).to_be_visible()
+        expect(page.get_by_title(f"소리 샘플 {index}")).to_be_visible()
+        button(page, answer_labels[answer]).click()
+        expect(button(page, "다음")).to_be_visible()
         if index == 1:
             # Resume without any test-side cookie restoration or API state setup.
             page.reload()
-            expect(page.get_by_title("Sound sample 2")).to_be_visible()
+            expect(page.get_by_title("소리 샘플 2")).to_be_visible()
             stored = flow.db.scalar(select(SampleResponse))
             assert stored.response == "like"
         else:
-            button(page, "Next").click()
+            button(page, "다음").click()
     expect(page.get_by_role(
-        "heading", name="Want to try 2 more sounds?",
+        "heading", name="소리 2개를 더 들어볼까요?",
     )).to_be_visible()
     if extended:
-        button(page, "Try 2 more").click()
+        button(page, "2개 더 듣기").click()
         for index in (7, 8):
-            expect(page.get_by_title(f"Sound sample {index}")).to_be_visible()
-            button(page, "Skip").click()
-            button(page, "Next" if index == 7 else "Continue").click()
+            expect(page.get_by_title(f"소리 샘플 {index}")).to_be_visible()
+            button(page, "건너뛰기").click()
+            button(page, "다음" if index == 7 else "계속").click()
     else:
-        button(page, "Continue").click()
+        button(page, "계속").click()
     at(flow, "/onboarding/voice")
     page.reload()
-    expect(page.get_by_role("radio", name=voice, exact=True)).to_be_visible()
+    expect(page.get_by_role(
+        "radio", name=voice_labels[voice], exact=True,
+    )).to_be_visible()
     responses = list(flow.db.scalars(select(SampleResponse).order_by(
         SampleResponse.id,
     )))
@@ -128,19 +151,21 @@ def test_fresh_session_to_first_taste_and_home(
     assert [row.response for row in responses] == expected
     assignments = list(flow.db.scalars(select(InitialTestAssignment)))
     assert len(assignments) == (8 if extended else 6)
-    page.get_by_role("radio", name=voice, exact=True).check()
-    button(page, "Continue").click()
+    page.get_by_role("radio", name=voice_labels[voice], exact=True).check()
+    button(page, "계속").click()
     if language:
         at(flow, "/onboarding/languages")
         page.goto(flow.origin)
         at(flow, "/onboarding/languages")
-        page.get_by_role("checkbox", name=language, exact=True).check()
-        button(page, "Continue").click()
+        page.get_by_role("checkbox", name=language_labels[language], exact=True).check()
+        button(page, "계속").click()
     at(flow, "/onboarding/extra-preferences")
     page.reload()
-    expect(page.get_by_role("checkbox", name="roleplay", exact=True)).to_be_visible()
     expect(page.get_by_role(
-        "checkbox", name="hand_movements", exact=True,
+        "checkbox", name="Roleplay · 롤플레이", exact=True,
+    )).to_be_visible()
+    expect(page.get_by_role(
+        "checkbox", name="Hand Movements · 핸드 무브먼트", exact=True,
     )).to_be_visible()
     expect(page.locator("iframe")).to_have_count(0)
     presented = {
@@ -150,22 +175,26 @@ def test_fresh_session_to_first_taste_and_home(
     for key, feature_id in flow.features.items():
         if feature_id not in presented:
             continue
-        expect(page.get_by_role("checkbox", name=key, exact=True)).to_have_count(0)
+        expect(page.get_by_role(
+            "checkbox", name=feature_labels[key], exact=True,
+        )).to_have_count(0)
     unpresented_sound = next(
         key for key, feature_id in flow.features.items()
         if feature_id not in presented and key not in {"roleplay", "hand_movements"}
     )
     if extras:
-        page.get_by_role("checkbox", name="roleplay", exact=True).check()
-        page.get_by_role("checkbox", name=unpresented_sound, exact=True).check()
-        button(page, "Continue").click()
+        page.get_by_role("checkbox", name="Roleplay · 롤플레이", exact=True).check()
+        page.get_by_role(
+            "checkbox", name=feature_labels[unpresented_sound], exact=True,
+        ).check()
+        button(page, "계속").click()
     else:
-        button(page, "Skip").click()
+        button(page, "건너뛰기").click()
     at(flow, "/my-taste?first=1")
     expect(page.get_by_role(
-        "heading", name="Your current taste", exact=True,
+        "heading", name="지금의 나의 취향", exact=True,
     )).to_be_visible()
-    expect(page.get_by_role("heading", name="Favorite Sounds")).to_be_visible()
+    expect(page.get_by_role("heading", name="좋아하는 소리")).to_be_visible()
     flow.db.expire_all()
     user = flow.db.scalar(select(User))
     assert user.onboarding_completed and user.initial_test_completed_at
@@ -184,7 +213,7 @@ def test_fresh_session_to_first_taste_and_home(
     if extras:
         assert preference(flow, unpresented_sound).score == Decimal("0.3500")
         assert preference(flow, unpresented_sound).evidence_count == 1
-    page.get_by_role("link", name="See my recommendations", exact=True).click()
+    page.get_by_role("link", name="나를 위한 추천 보기", exact=True).click()
     at(flow, "/home")
     expect(page.get_by_role("heading", name="For You")).to_be_visible()
     before = evidence(flow)
@@ -264,8 +293,8 @@ def test_returning_retention_loop(flow):
     expect(item).to_have_count(0)
     assert evidence(flow) == before
     nav(flow, "My Taste", "/my-taste")
-    expect(page.get_by_role("heading", name="Neutral / Disliked")).to_be_visible()
-    expect(page.get_by_role("heading", name="Recently discovered")).to_have_count(0)
+    expect(page.get_by_role("heading", name="보통이거나 싫어하는 요소")).to_be_visible()
+    expect(page.get_by_role("heading", name="최근 발견한 취향")).to_have_count(0)
     nav(flow, "Discover", "/discover")
     sentiment(flow, "hand_movements", "Like")
     row = preference(flow, "hand_movements")
@@ -274,11 +303,13 @@ def test_returning_retention_loop(flow):
     )
     nav(flow, "My Taste", "/my-taste")
     recent = page.locator("section").filter(has=page.get_by_role(
-        "heading", name="Recently discovered",
+        "heading", name="최근 발견한 취향",
     ))
-    expect(recent.get_by_text("hand_movements", exact=True)).to_be_visible()
-    expect(recent.locator(".state-label")).to_contain_text("Neutral")
-    expect(recent.get_by_text("tapping", exact=True)).to_have_count(0)
+    expect(recent.get_by_text(
+        "Hand Movements · 핸드 무브먼트", exact=True,
+    )).to_be_visible()
+    expect(recent.locator(".state-label")).to_contain_text("보통이에요")
+    expect(recent.get_by_text("Tapping · 태핑", exact=True)).to_have_count(0)
     nav(flow, "Search", "/search")
     expect(card(flow, "roleplay")).to_be_visible()
     before = evidence(flow)
@@ -316,7 +347,9 @@ def test_returning_retention_loop(flow):
     expect(card(flow, "tapping")).to_have_count(0)
     assert evidence(flow) == before
     nav(flow, "My Taste", "/my-taste")
-    expect(recent.get_by_text("hand_movements", exact=True)).to_be_visible()
+    expect(recent.get_by_text(
+        "Hand Movements · 핸드 무브먼트", exact=True,
+    )).to_be_visible()
     expect(recent.locator("li")).to_have_count(1)
     page.goto(flow.origin)
     at(flow, "/home")
